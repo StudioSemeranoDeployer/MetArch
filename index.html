@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Piramyd - MetArch</title>
+  <title>Simplified Metaverse with AR Support</title>
   <style>
     body { 
       margin: 0; 
@@ -153,6 +153,14 @@
       border-radius: 5px;
       z-index: 1000;
     }
+    #model-path-container {
+      margin-top: 10px;
+    }
+    #model-path {
+      width: 180px;
+      padding: 5px;
+      margin-right: 5px;
+    }
   </style>
 </head>
 <body>
@@ -184,6 +192,10 @@
     <p>Upload a 3D model in glTF/GLB format:</p>
     <input type="file" id="file-upload" accept=".glb,.gltf">
     <button id="upload-btn" class="upload-btn">Select File</button>
+    <div id="model-path-container">
+      <input type="text" id="model-path" value="scena.glb" placeholder="Enter model path">
+      <button id="load-path-btn" class="upload-btn">Load</button>
+    </div>
     <div id="upload-status"></div>
   </div>
   
@@ -414,6 +426,17 @@
         }
       });
       
+      // New: Load model from specified path
+      document.getElementById('load-path-btn').addEventListener('click', () => {
+        const path = document.getElementById('model-path').value.trim();
+        if (path) {
+          updateUploadStatus(`Loading model from path: ${path}`);
+          loadModel(path);
+        } else {
+          showError("Please enter a valid path");
+        }
+      });
+      
       function updateUploadStatus(text) {
         document.getElementById('upload-status').textContent = text;
       }
@@ -431,7 +454,7 @@
         
         // Create object URL if a file was provided
         if (fileOrPath instanceof File) {
-          if (currentModelURL) {
+          if (currentModelURL && currentModelURL.startsWith('blob:')) {
             URL.revokeObjectURL(currentModelURL);
           }
           currentModelURL = URL.createObjectURL(fileOrPath);
@@ -440,12 +463,20 @@
           currentModelURL = fileOrPath;
         }
         
+        console.log("Attempting to load model from:", currentModelURL);
+        
         const gltfLoader = new THREE.GLTFLoader();
         
-        // Load the model
+        // Load the model with timeout and better error handling
+        const loadingTimeout = setTimeout(() => {
+          updateUploadStatus("Loading taking longer than expected...");
+        }, 5000);
+        
         gltfLoader.load(
           currentModelURL,
           function(gltf) {
+            clearTimeout(loadingTimeout);
+            
             // Remove existing custom scene if any
             if (customScene) {
               scene.remove(customScene);
@@ -480,6 +511,7 @@
             scene.add(customScene);
             
             updateUploadStatus("Model loaded successfully!");
+            console.log("Model loaded successfully");
             
             // Enable AR button
             document.getElementById('ar-button').style.display = 'block';
@@ -495,9 +527,13 @@
           },
           function(error) {
             // Error
+            clearTimeout(loadingTimeout);
             console.error('Error loading model:', error);
-            updateUploadStatus('Error loading model');
-            showError('Failed to load model: ' + error.message);
+            updateUploadStatus(`Error loading model: ${error.message}`);
+            showError(`Failed to load model: ${error.message}. Check if the file exists at the specified path.`);
+            
+            // Show default buildings if model fails to load
+            defaultBuildings.visible = true;
           }
         );
       }
@@ -599,6 +635,12 @@
           avatar.position.z - Math.cos(targetRotationY) * 5
         );
         
+        // Move custom scene with avatar if it exists
+        if (customScene) {
+          customScene.position.x = avatar.position.x;
+          customScene.position.z = avatar.position.z;
+        }
+        
         updateCoordinatesDisplay();
         renderer.render(scene, camera);
       }
@@ -614,26 +656,19 @@
       animate();
       
       // Auto-load scena.glb when the page loads
-      // This is the key new feature
       autoLoadDefaultScene();
       
       // Function to auto-load the default scene
       function autoLoadDefaultScene() {
-        // Update upload status
-        updateUploadStatus("Auto-loading scena.glb...");
+        // Get path from input field or use default
+        const modelPath = document.getElementById('model-path').value.trim() || 'scena.glb';
         
-        // Try to load scena.glb
-        try {
-          // Path to the model - assuming it's in the same directory as the HTML file
-          const modelPath = 'scena.glb';
-          
-          // Load the model
-          loadModel(modelPath);
-        } catch (error) {
-          console.error('Error auto-loading model:', error);
-          updateUploadStatus('Error auto-loading scena.glb');
-          showError('Failed to auto-load model: ' + error.message);
-        }
+        // Update upload status
+        updateUploadStatus(`Auto-loading ${modelPath}...`);
+        console.log(`Attempting to auto-load model from: ${modelPath}`);
+        
+        // Try to load the model
+        loadModel(modelPath);
       }
     }
   </script>
