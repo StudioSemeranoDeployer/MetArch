@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simplified Metaverse with AR Support</title>
+  <style>
+    body { 
+      margin: 0; 
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+    #canvas { 
+      position: absolute; 
+      top: 0; 
+      left: 0; 
+      width: 100%; 
+      height: 100%; 
+    }
+    #ui {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      z-index: 100;
+      background-color: rgba(0, 0, 0, 0.5);
+      padding: 10px;
+      border-radius: 5px;
+      color: white;
+    }
+    #coordinates {
+      margin-bottom: 10px;
+    }
+    #controls {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      z-index: 100;
+      background-color: rgba(0, 0, 0, 0.5);
+      padding: 10px;
+      border-radius: 5px;
+      color: white;
+    }
+    button {
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      padding: 8px 16px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 14px;
+      margin: 4px 2px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    #loading {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      z-index: 1000;
+    }
+    .progress {
+      width: 50%;
+      background-color: #333;
+      border-radius: 5px;
+      margin-top: 20px;
+    }
+    .progress-bar {
+      height: 20px;
+      background-color: #4CAF50;
+      border-radius: 5px;
+      width: 0%;
+      transition: width 0.3s;
+    }
+    #scene-upload {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      z-index: 100;
+      background-color: rgba(0, 0, 0, 0.5);
+      padding: 10px;
+      border-radius: 5px;
+      color: white;
+      max-width: 300px;
+    }
+    #file-upload {
+      display: none;
+    }
+    .upload-btn {
+      background-color: #2980b9;
+    }
+    .upload-btn:hover {
+      background-color: #3498db;
+    }
+    #upload-status {
+      margin-top: 10px;
+      font-style: italic;
+    }
+    #ar-button {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 20px;
+      background-color: #ff4081;
+      z-index: 100;
+      display: none;
+    }
+    #ar-button:hover {
+      background-color: #f50057;
+    }
+    #qr-container {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: white;
+      padding: 20px;
+      border-radius: 10px;
+      z-index: 1000;
+      text-align: center;
+    }
+    #qr-code {
+      width: 200px;
+      height: 200px;
+      margin: 10px auto;
+      background-color: #f0f0f0;
+    }
+    #close-qr {
+      margin-top: 10px;
+    }
+    #error-message {
+      display: none;
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(255, 0, 0, 0.7);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 5px;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <h1>Loading Metaverse...</h1>
+    <div class="progress">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+  </div>
+  
+  <canvas id="canvas"></canvas>
+  
+  <div id="ui">
+    <div id="coordinates">Position: X: 0, Y: 0, Z: 0</div>
+    <button id="jump">Jump</button>
+    <button id="wave">Wave</button>
+  </div>
+  
+  <div id="controls">
+    <h3>Controls</h3>
+    <p>WASD - Move</p>
+    <p>Mouse - Look around</p>
+    <p>Space - Jump</p>
+    <button id="toggle-physics">Toggle Physics</button>
+  </div>
+  
+  <div id="scene-upload">
+    <h3>Scene Upload</h3>
+    <p>Upload a 3D model in glTF/GLB format:</p>
+    <input type="file" id="file-upload" accept=".glb,.gltf">
+    <button id="upload-btn" class="upload-btn">Select File</button>
+    <div id="upload-status"></div>
+  </div>
+  
+  <button id="ar-button">View in AR</button>
+  
+  <div id="qr-container">
+    <h3>Scan QR Code to view in AR</h3>
+    <div id="qr-code"></div>
+    <p>Or open this URL on your mobile device:</p>
+    <p id="ar-url">https://example.com/ar-view</p>
+    <button id="close-qr">Close</button>
+  </div>
+  
+  <div id="error-message"></div>
+
+  <!-- Script loading order is important -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Load GLTFLoader from the examples directory -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.0/build/qrcode.min.js"></script>
+  
+  <script>
+    // Main app initialization
+    document.addEventListener('DOMContentLoaded', () => {
+      // Check if THREE.js loaded properly
+      if (!window.THREE) {
+        showError("THREE.js failed to load. Please check your internet connection.");
+        document.getElementById('loading').innerHTML = '<h1>Error loading resources. Please refresh the page.</h1>';
+        return;
+      }
+      
+      // Start loading animation
+      simulateLoading();
+      
+      // Ensure GLTFLoader is loaded before initializing
+      if (typeof THREE.GLTFLoader === 'undefined') {
+        // If GLTFLoader isn't available, load it dynamically
+        const gltfScript = document.createElement('script');
+        gltfScript.src = "https://threejs.org/examples/js/loaders/GLTFLoader.js";
+        gltfScript.onload = initializeScene;
+        gltfScript.onerror = () => {
+          showError("Failed to load GLTFLoader. Please check your internet connection.");
+          document.getElementById('loading').innerHTML = '<h1>Error loading resources. Please refresh the page.</h1>';
+        };
+        document.head.appendChild(gltfScript);
+      } else {
+        // GLTFLoader already available, proceed with initialization
+        initializeScene();
+      }
+    });
+    
+    // Error display helper
+    function showError(message, duration = 5000) {
+      const errorElement = document.getElementById('error-message');
+      errorElement.textContent = message;
+      errorElement.style.display = 'block';
+      
+      setTimeout(() => {
+        errorElement.style.display = 'none';
+      }, duration);
+    }
+    
+    // Simulate loading progress
+    function simulateLoading() {
+      let progress = 0;
+      const progressBar = document.getElementById('progress-bar');
+      const loadingScreen = document.getElementById('loading');
+      
+      const loadingInterval = setInterval(() => {
+        progress += Math.random() * 10;
+        if (progress >= 100) {
+          progress = 100;
+          clearInterval(loadingInterval);
+          setTimeout(() => {
+            loadingScreen.style.display = 'none';
+          }, 500);
+        }
+        progressBar.style.width = progress + '%';
+      }, 200);
+    }
+    
+    // Initialize Three.js scene
+    function initializeScene() {
+      // Basic Three.js setup
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      const renderer = new THREE.WebGLRenderer({ 
+        canvas: document.getElementById('canvas'), 
+        antialias: true,
+        alpha: true  // Important for AR
+      });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setClearColor(0x87CEEB); // Sky blue background
+      renderer.shadowMap.enabled = true;
+      
+      // Add basic lighting
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+      scene.add(ambientLight);
+      
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      directionalLight.position.set(10, 20, 10);
+      directionalLight.castShadow = true;
+      scene.add(directionalLight);
+      
+      // Create a simple ground plane
+      const groundGeometry = new THREE.PlaneGeometry(100, 100);
+      const groundMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x4CAF50,
+        roughness: 0.8,
+      });
+      const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.y = -1;
+      ground.receiveShadow = true;
+      scene.add(ground);
+      
+      // Create a default scene with buildings
+      const defaultBuildings = new THREE.Group();
+      scene.add(defaultBuildings);
+      
+      // Create several buildings
+      createBuilding(-15, -15, 8, 12, 8, 0x3498db);
+      createBuilding(15, -15, 10, 15, 10, 0x9b59b6);
+      createBuilding(-15, 15, 7, 10, 7, 0xe74c3c);
+      createBuilding(15, 15, 12, 20, 12, 0xf1c40f);
+      
+      // Grid helper
+      const gridHelper = new THREE.GridHelper(100, 20);
+      scene.add(gridHelper);
+      
+      // Add simple avatar (box)
+      const avatarGeometry = new THREE.BoxGeometry(1, 2, 1);
+      const avatarMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+      const avatar = new THREE.Mesh(avatarGeometry, avatarMaterial);
+      avatar.position.y = 0;
+      avatar.castShadow = true;
+      scene.add(avatar);
+      
+      // Camera follows the avatar
+      camera.position.set(0, 1.6, 5);
+      camera.lookAt(avatar.position);
+      
+      // Movement variables
+      const keys = {};
+      let moveSpeed = 0.1;
+      let playerVelocity = new THREE.Vector3(0, 0, 0);
+      let gravity = 0.005;
+      let jumping = false;
+      let physicsEnabled = true;
+      let targetRotationY = 0;
+      let targetRotationX = 0;
+      let customScene = null;
+      
+      // Create building helper function
+      function createBuilding(x, z, width, height, depth, color) {
+        const geometry = new THREE.BoxGeometry(width, height, depth);
+        const material = new THREE.MeshStandardMaterial({ 
+          color: color,
+          roughness: 0.7
+        });
+        const building = new THREE.Mesh(geometry, material);
+        building.position.set(x, height / 2 - 1, z);
+        building.castShadow = true;
+        building.receiveShadow = true;
+        defaultBuildings.add(building);
+        return building;
+      }
+      
+      // Keyboard event listeners
+      document.addEventListener('keydown', (e) => keys[e.key.toLowerCase()] = true);
+      document.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
+      
+      // Jump button event
+      document.getElementById('jump').addEventListener('click', () => {
+        if (!jumping && physicsEnabled) {
+          playerVelocity.y = 0.2;
+          jumping = true;
+        }
+      });
+      
+      // Wave button event
+      document.getElementById('wave').addEventListener('click', () => {
+        console.log("Wave animation triggered");
+      });
+      
+      // Toggle physics
+      document.getElementById('toggle-physics').addEventListener('click', () => {
+        physicsEnabled = !physicsEnabled;
+        document.getElementById('toggle-physics').textContent = 
+          physicsEnabled ? "Toggle Physics: ON" : "Toggle Physics: OFF";
+      });
+      
+      // Mouse look controls
+      document.addEventListener('mousemove', (e) => {
+        if (document.pointerLockElement === document.body) {
+          targetRotationY -= e.movementX * 0.002;
+          targetRotationX -= e.movementY * 0.002;
+          
+          // Limit up/down rotation
+          targetRotationX = Math.max(Math.min(targetRotationX, Math.PI / 4), -Math.PI / 4);
+        }
+      });
+      
+      // Request pointer lock on canvas click
+      document.getElementById('canvas').addEventListener('click', () => {
+        document.body.requestPointerLock();
+      });
+      
+      // Update coordinates display
+      function updateCoordinatesDisplay() {
+        document.getElementById('coordinates').textContent = 
+          `Position: X: ${avatar.position.x.toFixed(2)}, Y: ${avatar.position.y.toFixed(2)}, Z: ${avatar.position.z.toFixed(2)}`;
+      }
+      
+      // Setup model loader
+      let currentModelURL = null;
+      
+      // File upload handling
+      document.getElementById('upload-btn').addEventListener('click', () => {
+        document.getElementById('file-upload').click();
+      });
+      
+      document.getElementById('file-upload').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          updateUploadStatus(`File selected: ${file.name}`);
+          loadModel(file);
+        }
+      });
+      
+      function updateUploadStatus(text) {
+        document.getElementById('upload-status').textContent = text;
+      }
+      
+      // Load model function - updated to handle both file objects and URLs
+      function loadModel(fileOrPath) {
+        // First check if GLTFLoader is available
+        if (typeof THREE.GLTFLoader === 'undefined') {
+          showError("GLTFLoader is not available. Cannot load 3D models.");
+          updateUploadStatus("Error: Model loader not available");
+          return;
+        }
+        
+        updateUploadStatus("Loading model...");
+        
+        // Create object URL if a file was provided
+        if (fileOrPath instanceof File) {
+          if (currentModelURL) {
+            URL.revokeObjectURL(currentModelURL);
+          }
+          currentModelURL = URL.createObjectURL(fileOrPath);
+        } else {
+          // Use the path directly if it's a string
+          currentModelURL = fileOrPath;
+        }
+        
+        const gltfLoader = new THREE.GLTFLoader();
+        
+        // Load the model
+        gltfLoader.load(
+          currentModelURL,
+          function(gltf) {
+            // Remove existing custom scene if any
+            if (customScene) {
+              scene.remove(customScene);
+            }
+            
+            customScene = new THREE.Group();
+            const model = gltf.scene;
+            
+            // Center model
+            const box = new THREE.Box3().setFromObject(model);
+            const center = box.getCenter(new THREE.Vector3());
+            model.position.sub(center);
+            
+            // Apply shadow settings
+            model.traverse(function(node) {
+              if (node.isMesh) {
+                node.castShadow = true;
+                node.receiveShadow = true;
+              }
+            });
+            
+            customScene.add(model);
+            
+            // Position at avatar's location
+            customScene.position.copy(avatar.position);
+            customScene.position.y = 0;
+            
+            // Hide default buildings
+            defaultBuildings.visible = false;
+            
+            // Add to scene
+            scene.add(customScene);
+            
+            updateUploadStatus("Model loaded successfully!");
+            
+            // Enable AR button
+            document.getElementById('ar-button').style.display = 'block';
+          },
+          function(xhr) {
+            // Progress
+            if (xhr.lengthComputable) {
+              const percent = (xhr.loaded / xhr.total * 100);
+              updateUploadStatus(`Loading: ${Math.round(percent)}%`);
+            } else {
+              updateUploadStatus(`Loading model...`);
+            }
+          },
+          function(error) {
+            // Error
+            console.error('Error loading model:', error);
+            updateUploadStatus('Error loading model');
+            showError('Failed to load model: ' + error.message);
+          }
+        );
+      }
+      
+      // AR button handler
+      document.getElementById('ar-button').addEventListener('click', handleARView);
+      
+      // Close QR code dialog
+      document.getElementById('close-qr').addEventListener('click', () => {
+        document.getElementById('qr-container').style.display = 'none';
+      });
+      
+      // Handle AR view function
+      function handleARView() {
+        if (!currentModelURL) {
+          showError("No model available for AR view");
+          return;
+        }
+        
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const isAndroid = /android/i.test(navigator.userAgent);
+        
+        if (isIOS || isAndroid) {
+          // Show error on mobile - would need a server to make this work
+          showError("AR view needs server implementation to work on mobile devices");
+        } else {
+          // Show QR code on desktop
+          const qrContainer = document.getElementById('qr-container');
+          const qrCodeElement = document.getElementById('qr-code');
+          
+          // Mock AR URL
+          const demoArUrl = "https://example.com/ar-view?model=demo";
+          
+          // Generate QR code
+          qrCodeElement.innerHTML = '';
+          if (window.QRCode) {
+            new QRCode(qrCodeElement, {
+              text: demoArUrl,
+              width: 200,
+              height: 200
+            });
+          } else {
+            qrCodeElement.textContent = "QR Code library not loaded";
+          }
+          
+          qrContainer.style.display = 'block';
+        }
+      }
+      
+      // Animation loop
+      function animate() {
+        requestAnimationFrame(animate);
+        
+        // Handle movement
+        const direction = new THREE.Vector3();
+        
+        if (keys['w']) direction.z = -1;
+        if (keys['s']) direction.z = 1;
+        if (keys['a']) direction.x = -1;
+        if (keys['d']) direction.x = 1;
+        if (keys[' '] && !jumping && physicsEnabled) {
+          playerVelocity.y = 0.2;
+          jumping = true;
+        }
+        
+        // Apply rotation to movement direction
+        direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), targetRotationY);
+        direction.normalize().multiplyScalar(moveSpeed);
+        
+        // Apply movement
+        avatar.position.x += direction.x;
+        avatar.position.z += direction.z;
+        
+        // Apply physics
+        if (physicsEnabled) {
+          playerVelocity.y -= gravity;
+          avatar.position.y += playerVelocity.y;
+          
+          // Ground collision
+          if (avatar.position.y < 0) {
+            avatar.position.y = 0;
+            playerVelocity.y = 0;
+            jumping = false;
+          }
+        }
+        
+        // Update avatar rotation
+        avatar.rotation.y = targetRotationY;
+        
+        // Position camera
+        const cameraOffset = new THREE.Vector3(0, 1.6, 5);
+        cameraOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), targetRotationY);
+        camera.position.copy(avatar.position).add(cameraOffset);
+        
+        // Apply look rotation
+        camera.lookAt(
+          avatar.position.x - Math.sin(targetRotationY) * 5,
+          avatar.position.y + 1.6 + Math.sin(targetRotationX) * 5,
+          avatar.position.z - Math.cos(targetRotationY) * 5
+        );
+        
+        updateCoordinatesDisplay();
+        renderer.render(scene, camera);
+      }
+      
+      // Handle window resize
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+      
+      // Start animation
+      animate();
+      
+      // Auto-load scena.glb when the page loads
+      // This is the key new feature
+      autoLoadDefaultScene();
+      
+      // Function to auto-load the default scene
+      function autoLoadDefaultScene() {
+        // Update upload status
+        updateUploadStatus("Auto-loading scena.glb...");
+        
+        // Try to load scena.glb
+        try {
+          // Path to the model - assuming it's in the same directory as the HTML file
+          const modelPath = 'scena.glb';
+          
+          // Load the model
+          loadModel(modelPath);
+        } catch (error) {
+          console.error('Error auto-loading model:', error);
+          updateUploadStatus('Error auto-loading scena.glb');
+          showError('Failed to auto-load model: ' + error.message);
+        }
+      }
+    }
+  </script>
+</body>
+</html>
