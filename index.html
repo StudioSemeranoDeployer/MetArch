@@ -418,8 +418,8 @@
         document.getElementById('upload-status').textContent = text;
       }
       
-      // Load model function - updated to handle both file objects and URLs
-      function loadModel(fileOrPath) {
+      // Load model function
+      function loadModel(file) {
         // First check if GLTFLoader is available
         if (typeof THREE.GLTFLoader === 'undefined') {
           showError("GLTFLoader is not available. Cannot load 3D models.");
@@ -429,16 +429,11 @@
         
         updateUploadStatus("Loading model...");
         
-        // Create object URL if a file was provided
-        if (fileOrPath instanceof File) {
-          if (currentModelURL) {
-            URL.revokeObjectURL(currentModelURL);
-          }
-          currentModelURL = URL.createObjectURL(fileOrPath);
-        } else {
-          // Use the path directly if it's a string
-          currentModelURL = fileOrPath;
+        // Create object URL for the file
+        if (currentModelURL) {
+          URL.revokeObjectURL(currentModelURL);
         }
+        currentModelURL = URL.createObjectURL(file);
         
         const gltfLoader = new THREE.GLTFLoader();
         
@@ -486,12 +481,8 @@
           },
           function(xhr) {
             // Progress
-            if (xhr.lengthComputable) {
-              const percent = (xhr.loaded / xhr.total * 100);
-              updateUploadStatus(`Loading: ${Math.round(percent)}%`);
-            } else {
-              updateUploadStatus(`Loading model...`);
-            }
+            const percent = (xhr.loaded / xhr.total * 100);
+            updateUploadStatus(`Loading: ${Math.round(percent)}%`);
           },
           function(error) {
             // Error
@@ -612,29 +603,6 @@
       
       // Start animation
       animate();
-      
-      // Auto-load scena.glb when the page loads
-      // This is the key new feature
-      autoLoadDefaultScene();
-      
-      // Function to auto-load the default scene
-      function autoLoadDefaultScene() {
-        // Update upload status
-        updateUploadStatus("Auto-loading scena.glb...");
-        
-        // Try to load scena.glb
-        try {
-          // Path to the model - assuming it's in the same directory as the HTML file
-          const modelPath = 'scena.glb';
-          
-          // Load the model
-          loadModel(modelPath);
-        } catch (error) {
-          console.error('Error auto-loading model:', error);
-          updateUploadStatus('Error auto-loading scena.glb');
-          showError('Failed to auto-load model: ' + error.message);
-        }
-      }
     }
   </script>
 </body>
