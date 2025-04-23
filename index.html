@@ -1,0 +1,1618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MetaVrch</title>
+  <style>
+    body { 
+      margin: 0; 
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      touch-action: none; /* Prevents default touch behaviors */
+    }
+    #canvas { 
+      position: absolute; 
+      top: 0; 
+      left: 0; 
+      width: 100%; 
+      height: 100%; 
+    }
+    #ui {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      z-index: 100;
+      background-color: rgba(0, 0, 0, 0.5);
+      padding: 10px;
+      border-radius: 5px;
+      color: white;
+    }
+    #coordinates {
+      margin-bottom: 10px;
+    }
+    #mobile-controls {
+      display: none;
+      position: absolute;
+      bottom: 80px;
+      left: 20px;
+      z-index: 100;
+    }
+    .joystick-base {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      background-color: rgba(0, 0, 0, 0.3);
+      border-radius: 50%;
+      touch-action: none;
+    }
+    .joystick-thumb {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 40px;
+      height: 40px;
+      background-color: rgba(255, 255, 255, 0.7);
+      border-radius: 50%;
+    }
+    #mobile-buttons {
+      position: absolute;
+      bottom: 80px;
+      right: 20px;
+      z-index: 100;
+      display: none;
+    }
+    .mobile-btn {
+      width: 50px;
+      height: 50px;
+      background-color: rgba(0, 0, 0, 0.5);
+      border-radius: 50%;
+      color: white;
+      font-size: 18px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 5px;
+      user-select: none;
+    }
+    #settings-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: rgba(0, 0, 0, 0.5);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 18px;
+      cursor: pointer;
+      z-index: 200;
+    }
+    #settings-panel {
+      position: absolute;
+      top: 70px;
+      right: 20px;
+      width: 250px;
+      background-color: rgba(0, 0, 0, 0.8);
+      border-radius: 5px;
+      padding: 15px;
+      color: white;
+      z-index: 150;
+      display: none;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .setting-section {
+      margin-bottom: 15px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      padding-bottom: 10px;
+    }
+    .setting-section:last-child {
+      border-bottom: none;
+    }
+    .setting-title {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .setting-option {
+      margin-top: 8px;
+    }
+    #loading {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      z-index: 1000;
+    }
+    .progress {
+      width: 50%;
+      background-color: #333;
+      border-radius: 5px;
+      margin-top: 20px;
+    }
+    .progress-bar {
+      height: 20px;
+      background-color: #4CAF50;
+      border-radius: 5px;
+      width: 0%;
+      transition: width 0.3s;
+    }
+    #file-upload, #skybox-upload, #avatar-upload {
+      display: none;
+    }
+    #game-stats {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background-color: rgba(0, 0, 0, 0.6);
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 100;
+      display: none;
+    }
+    .btn {
+      background-color: #2980b9;
+      border: none;
+      color: white;
+      padding: 8px 16px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 14px;
+      margin: 4px 2px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .btn:hover {
+      background-color: #3498db;
+    }
+    #error-message {
+      display: none;
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(255, 0, 0, 0.7);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 5px;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <h1>Caricamento Metaverso...</h1>
+    <div class="progress">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+  </div>
+  
+  <canvas id="canvas"></canvas>
+  
+  <div id="ui">
+    <div id="coordinates">Posizione: X: 0, Y: 0, Z: 0</div>
+    <button id="jump" class="btn">Salta</button>
+    <button id="wave" class="btn">Saluta</button>
+  </div>
+  
+  <div id="mobile-controls">
+    <div class="joystick-base" id="joystick-base">
+      <div class="joystick-thumb" id="joystick-thumb"></div>
+    </div>
+  </div>
+
+  <div id="mobile-buttons">
+    <div class="mobile-btn" id="mobile-jump">↑</div>
+    <div class="mobile-btn" id="mobile-action">A</div>
+  </div>
+
+  <div id="game-stats">
+    <div>Punteggio: <span id="score">0</span></div>
+    <div>Record: <span id="highscore">0</span></div>
+    <div>Nemici: <span id="enemies">0</span></div>
+  </div>
+
+  <div id="settings-btn">⚙</div>
+  <div id="settings-panel">
+    <h3>Impostazioni</h3>
+    
+    <div class="setting-section">
+      <div class="setting-title">Controlli</div>
+      <div class="setting-option">
+        <p>WASD - Muoversi<br>Mouse - Guardare intorno<br>Spazio - Saltare</p>
+        <button id="toggle-physics" class="btn">Fisica: ON</button>
+      </div>
+    </div>
+    
+    <div class="setting-section">
+      <div class="setting-title">Ambiente</div>
+      <div class="setting-option">
+        <button id="skybox-btn" class="btn">Cambia Sfondo 360°</button>
+        <input type="file" id="skybox-upload" accept="image/*">
+        <div id="skybox-status"></div>
+      </div>
+      <div class="setting-option">
+        <button id="default-scene-btn" class="btn">Carica Scena Predefinita</button>
+      </div>
+    </div>
+    
+    <div class="setting-section">
+      <div class="setting-title">Modelli 3D</div>
+      <div class="setting-option">
+        <button id="upload-model-btn" class="btn">Carica Modello 3D</button>
+        <input type="file" id="file-upload" accept=".glb,.gltf">
+        <div id="upload-status"></div>
+      </div>
+    </div>
+    
+    <div class="setting-section">
+      <div class="setting-title">Avatar</div>
+      <div class="setting-option">
+        <button id="change-avatar-btn" class="btn">Cambia Avatar</button>
+        <input type="file" id="avatar-upload" accept=".glb,.gltf">
+        <div id="avatar-status"></div>
+        <div class="setting-option">
+          <button id="default-avatar-btn" class="btn">Avatar Predefinito</button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="setting-section">
+      <div class="setting-title">Costruzione</div>
+      <div class="setting-option">
+        <button id="add-building-btn" class="btn">Aggiungi Palazzo</button>
+        <button id="add-tree-btn" class="btn">Aggiungi Albero</button>
+        <button id="add-barrier-btn" class="btn">Aggiungi Barriera</button>
+      </div>
+    </div>
+    
+    <div class="setting-section">
+      <div class="setting-title">Modalità Gioco</div>
+      <div class="setting-option">
+        <button id="start-game-btn" class="btn">Avvia Sparatutto</button>
+        <button id="stop-game-btn" class="btn">Termina Gioco</button>
+      </div>
+    </div>
+  </div>
+  
+  <div id="error-message"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.152.0/examples/jsm/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.152.0/examples/jsm/controls/DeviceOrientationControls.js"></script>
+
+  
+  <script>
+    // Main app initialization
+    document.addEventListener('DOMContentLoaded', () => {
+      // Check if THREE.js loaded properly
+      if (!window.THREE) {
+        showError("THREE.js non si è caricato correttamente. Controlla la connessione internet.");
+        document.getElementById('loading').innerHTML = '<h1>Errore di caricamento. Ricarica la pagina.</h1>';
+        return;
+      }
+      
+      // Start loading animation
+      simulateLoading();
+      
+      // Check if mobile device
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      // Mobile optimizations
+      if (isMobile) {
+        document.getElementById('mobile-controls').style.display = 'block';
+        document.getElementById('mobile-buttons').style.display = 'block';
+      }
+      
+      // Ensure GLTFLoader is loaded before initializing
+      if (typeof THREE.GLTFLoader === 'undefined') {
+        // If GLTFLoader isn't available, load it dynamically
+        const gltfScript = document.createElement('script');
+        gltfScript.src = "https://threejs.org/examples/js/loaders/GLTFLoader.js";
+        gltfScript.onload = () => initializeScene(isMobile);
+        gltfScript.onerror = () => {
+          showError("Impossibile caricare GLTFLoader. Controlla la connessione internet.");
+          document.getElementById('loading').innerHTML = '<h1>Errore di caricamento. Ricarica la pagina.</h1>';
+        };
+        document.head.appendChild(gltfScript);
+      } else {
+        // GLTFLoader already available, proceed with initialization
+        initializeScene(isMobile);
+      }
+    });
+    
+    // Error display helper
+    function showError(message, duration = 5000) {
+      const errorElement = document.getElementById('error-message');
+      errorElement.textContent = message;
+      errorElement.style.display = 'block';
+      
+      setTimeout(() => {
+        errorElement.style.display = 'none';
+      }, duration);
+    }
+    
+    // Simulate loading progress
+    function simulateLoading() {
+      let progress = 0;
+      const progressBar = document.getElementById('progress-bar');
+      const loadingScreen = document.getElementById('loading');
+      
+      const loadingInterval = setInterval(() => {
+        progress += Math.random() * 10;
+        if (progress >= 100) {
+          progress = 100;
+          clearInterval(loadingInterval);
+          setTimeout(() => {
+            loadingScreen.style.display = 'none';
+          }, 500);
+        }
+        progressBar.style.width = progress + '%';
+      }, 200);
+    }
+    
+    // Initialize Three.js scene
+    function initializeScene(isMobile) {
+      // Game data
+      let gameState = {
+        score: 0,
+        highScore: localStorage.getItem('metaverseHighScore') || 0,
+        enemies: 0,
+        gameActive: false
+      };
+      
+      // Basic Three.js setup
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      const renderer = new THREE.WebGLRenderer({ 
+        canvas: document.getElementById('canvas'), 
+        antialias: !isMobile,  // Disable antialiasing on mobile for performance
+        alpha: true  // Important for AR
+      });
+      
+      // Mobile optimization - lower resolution on mobile
+      if (isMobile) {
+        renderer.setPixelRatio(window.devicePixelRatio * 0.7);
+      } else {
+        renderer.setPixelRatio(window.devicePixelRatio);
+      }
+      
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setClearColor(0x87CEEB); // Sky blue background
+      renderer.shadowMap.enabled = !isMobile; // Disable shadows on mobile for performance
+      
+      // Add basic lighting
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+      scene.add(ambientLight);
+      
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      directionalLight.position.set(10, 20, 10);
+      directionalLight.castShadow = !isMobile; // Disable shadow casting on mobile
+      scene.add(directionalLight);
+      
+      // Create a simple ground plane
+      const groundGeometry = new THREE.PlaneGeometry(100, 100);
+      const groundMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x4CAF50,
+        roughness: 0.8,
+      });
+      const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.y = -1;
+      ground.receiveShadow = !isMobile;
+      scene.add(ground);
+      
+      // Create a default scene with buildings
+      const defaultBuildings = new THREE.Group();
+      scene.add(defaultBuildings);
+      
+      // Create several buildings
+      createBuilding(-15, -15, 8, 12, 8, 0x3498db);
+      createBuilding(15, -15, 10, 15, 10, 0x9b59b6);
+      createBuilding(-15, 15, 7, 10, 7, 0xe74c3c);
+      createBuilding(15, 15, 12, 20, 12, 0xf1c40f);
+      
+      // Grid helper - disable on mobile for performance
+      if (!isMobile) {
+        const gridHelper = new THREE.GridHelper(100, 20);
+        scene.add(gridHelper);
+      }
+      
+      // Add simple avatar (box)
+      const avatarGroup = new THREE.Group();
+      const avatarGeometry = new THREE.BoxGeometry(1, 2, 1);
+      const avatarMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+      const avatarMesh = new THREE.Mesh(avatarGeometry, avatarMaterial);
+      avatarMesh.castShadow = !isMobile;
+      avatarGroup.add(avatarMesh);
+      
+      // Add avatar to scene
+      scene.add(avatarGroup);
+      
+      // Camera follows the avatar
+      camera.position.set(0, 1.6, 5);
+      camera.lookAt(avatarGroup.position);
+      
+      // Movement variables
+      const keys = {};
+      let moveSpeed = isMobile ? 0.08 : 0.1; // Slightly slower on mobile
+      let playerVelocity = new THREE.Vector3(0, 0, 0);
+      let gravity = 0.005;
+      let jumping = false;
+      let physicsEnabled = true;
+      let targetRotationY = 0;
+      let targetRotationX = 0;
+      let customScene = null;
+      let skybox = null;
+      let customAvatar = null;
+      let mobileControls = {
+        active: false,
+        joystickDelta: { x: 0, y: 0 }
+      };
+      let bullets = [];
+      let enemies = [];
+
+      // Groups for organization
+      const bulletGroup = new THREE.Group();
+      const enemyGroup = new THREE.Group();
+      scene.add(bulletGroup);
+      scene.add(enemyGroup);
+      
+      // Create building helper function
+      function createBuilding(x, z, width, height, depth, color) {
+        const geometry = new THREE.BoxGeometry(width, height, depth);
+        const material = new THREE.MeshStandardMaterial({ 
+          color: color,
+          roughness: 0.7
+        });
+        const building = new THREE.Mesh(geometry, material);
+        building.position.set(x, height / 2 - 1, z);
+        building.castShadow = !isMobile;
+        building.receiveShadow = !isMobile;
+        defaultBuildings.add(building);
+        return building;
+      }
+      
+      // Keyboard event listeners
+      document.addEventListener('keydown', (e) => keys[e.key.toLowerCase()] = true);
+      document.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
+      
+      // Jump button event
+      document.getElementById('jump').addEventListener('click', () => {
+        if (!jumping && physicsEnabled) {
+          playerVelocity.y = 0.2;
+          jumping = true;
+        }
+      });
+      
+      // Wave button event
+      document.getElementById('wave').addEventListener('click', () => {
+        console.log("Wave animation triggered");
+        // Here you would animate the avatar doing a wave
+      });
+      
+      // Toggle physics
+      document.getElementById('toggle-physics').addEventListener('click', () => {
+        physicsEnabled = !physicsEnabled;
+        document.getElementById('toggle-physics').textContent = 
+          physicsEnabled ? "Fisica: ON" : "Fisica: OFF";
+      });
+      
+      // Settings button
+      document.getElementById('settings-btn').addEventListener('click', () => {
+        const panel = document.getElementById('settings-panel');
+        if (panel.style.display === 'block') {
+          panel.style.display = 'none';
+        } else {
+          panel.style.display = 'block';
+        }
+      });
+      
+      // Mouse look controls
+      document.addEventListener('mousemove', (e) => {
+        if (document.pointerLockElement === document.body) {
+          targetRotationY -= e.movementX * 0.002;
+          targetRotationX -= e.movementY * 0.002;
+          
+          // Limit up/down rotation
+          targetRotationX = Math.max(Math.min(targetRotationX, Math.PI / 4), -Math.PI / 4);
+        }
+      });
+      
+      // Request pointer lock on canvas click for desktop
+      if (!isMobile) {
+        document.getElementById('canvas').addEventListener('click', () => {
+          document.body.requestPointerLock();
+        });
+      }
+      
+      // Mobile controls setup
+      if (isMobile) {
+        setupMobileControls();
+      }
+      
+      function setupMobileControls() {
+        const joystickBase = document.getElementById('joystick-base');
+        const joystickThumb = document.getElementById('joystick-thumb');
+        let startPos = { x: 0, y: 0 };
+        
+        // Touch start
+        joystickBase.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          mobileControls.active = true;
+          const touch = e.touches[0];
+          const rect = joystickBase.getBoundingClientRect();
+          startPos.x = touch.clientX - rect.left;
+          startPos.y = touch.clientY - rect.top;
+        });
+        
+        // Touch move
+        joystickBase.addEventListener('touchmove', (e) => {
+          e.preventDefault();
+          if (mobileControls.active) {
+            const touch = e.touches[0];
+            const rect = joystickBase.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+            
+            // Calculate delta from center
+            const deltaX = x - rect.width / 2;
+            const deltaY = y - rect.height / 2;
+            
+            // Limit joystick range
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            const maxDistance = rect.width / 2;
+            
+            if (distance > maxDistance) {
+              const scale = maxDistance / distance;
+              const limitedX = deltaX * scale + rect.width / 2;
+              const limitedY = deltaY * scale + rect.height / 2;
+              
+              joystickThumb.style.left = limitedX + 'px';
+              joystickThumb.style.top = limitedY + 'px';
+              
+              mobileControls.joystickDelta.x = (limitedX - rect.width / 2) / maxDistance;
+              mobileControls.joystickDelta.y = (limitedY - rect.height / 2) / maxDistance;
+            } else {
+              joystickThumb.style.left = x + 'px';
+              joystickThumb.style.top = y + 'px';
+              
+              mobileControls.joystickDelta.x = deltaX / maxDistance;
+              mobileControls.joystickDelta.y = deltaY / maxDistance;
+            }
+          }
+        });
+        
+        // Touch end
+        joystickBase.addEventListener('touchend', (e) => {
+          e.preventDefault();
+          mobileControls.active = false;
+          mobileControls.joystickDelta = { x: 0, y: 0 };
+          joystickThumb.style.left = '50%';
+          joystickThumb.style.top = '50%';
+          joystickThumb.style.transform = 'translate(-50%, -50%)';
+        });
+        
+        // Mobile look controls (swipe right half of screen)
+        document.getElementById('canvas').addEventListener('touchmove', (e) => {
+  if (e.touches.length === 1) {
+    const touch = e.touches[0];
+    if (touch.clientX > window.innerWidth / 2) {
+      // Only handle touch on right half of screen
+      const touchDeltaX = touch.pageX - startPos.x;
+      const touchDeltaY = touch.pageY - startPos.y;
+      
+      if (Math.abs(touchDeltaX) > 2 || Math.abs(touchDeltaY) > 2) {
+        targetRotationY -= touchDeltaX * 0.005;
+        targetRotationX -= touchDeltaY * 0.005;
+        startPos.x = touch.pageX;
+        startPos.y = touch.pageY;
+      }
+      
+      // Limit up/down rotation
+      targetRotationX = Math.max(Math.min(targetRotationX, Math.PI / 4), -Math.PI / 4);
+    }
+  }
+});
+        
+        // Mobile jump button
+        document.getElementById('mobile-jump').addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          if (!jumping && physicsEnabled) {
+            playerVelocity.y = 0.2;
+            jumping = true;
+          }
+        });
+        
+        // Mobile action button
+        document.getElementById('mobile-action').addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          if (gameState.gameActive) {
+            fireBullet();
+          } else {
+            // Wave animation
+            console.log("Wave animation triggered from mobile");
+          }
+        });
+        
+        // Track initial touch position for camera movement
+        document.getElementById('canvas').addEventListener('touchstart', (e) => {
+          if (e.touches.length === 1 && e.touches[0].clientX > window.innerWidth / 2) {
+            startPos.x = e.touches[0].pageX;
+            startPos.y = e.touches[0].pageY;
+          }
+        });
+      }
+      
+      // Update coordinates display
+      function updateCoordinatesDisplay() {
+        document.getElementById('coordinates').textContent = 
+          `Posizione: X: ${avatarGroup.position.x.toFixed(2)}, Y: ${avatarGroup.position.y.toFixed(2)}, Z: ${avatarGroup.position.z.toFixed(2)}`;
+      }
+      
+      // Setup model loader
+      let currentModelURL = null;
+      
+      // File upload handling - now in settings panel
+      document.getElementById('upload-model-btn').addEventListener('click', () => {
+        document.getElementById('file-upload').click();
+      });
+      
+      document.getElementById('file-upload').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          updateStatus('upload-status', `File selezionato: ${file.name}`);
+          loadModel(file);
+        }
+      });
+      
+      // Skybox handling
+      document.getElementById('skybox-btn').addEventListener('click', () => {
+        document.getElementById('skybox-upload').click();
+      });
+      
+      document.getElementById('skybox-upload').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          updateStatus('skybox-status', `Sfondo selezionato: ${file.name}`);
+          loadSkybox(file);
+        }
+      });
+      
+      // Avatar handling
+      document.getElementById('change-avatar-btn').addEventListener('click', () => {
+        document.getElementById('avatar-upload').click();
+      });
+      
+      document.getElementById('avatar-upload').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          updateStatus('avatar-status', `Avatar selezionato: ${file.name}`);
+          loadAvatar(file);
+        }
+      });
+      
+      // Default avatar
+      document.getElementById('default-avatar-btn').addEventListener('click', () => {
+        resetAvatar();
+      });
+      
+      // Default scene
+      document.getElementById('default-scene-btn').addEventListener('click', () => {
+        loadDefaultScene();
+      });
+      
+      // Building functions
+      document.getElementById('add-building-btn').addEventListener('click', () => {
+        addBuilding();
+      });
+      
+      document.getElementById('add-tree-btn').addEventListener('click', () => {
+        addTree();
+      });
+      
+      document.getElementById('add-barrier-btn').addEventListener('click', () => {
+        addBarrier();
+      });
+      
+      // Game functions
+      document.getElementById('start-game-btn').addEventListener('click', () => {
+        startGame();
+      });
+      
+      document.getElementById('stop-game-btn').addEventListener('click', () => {
+        stopGame();
+      });
+      
+      function updateStatus(elementId, text) {
+        document.getElementById(elementId).textContent = text;
+      }
+      
+      // Load model function
+      function loadModel(file) {
+        // First check if GLTFLoader is available
+        if (typeof THREE.GLTFLoader === 'undefined') {
+          showError("GLTFLoader non disponibile. Impossibile caricare modelli 3D.");
+          updateStatus('upload-status', "Errore: loader modelli non disponibile");
+          return;
+        }
+        
+        updateStatus('upload-status', "Caricamento modello...");
+        
+        // Create object URL for the file
+        if (currentModelURL) {
+          URL.revokeObjectURL(currentModelURL);
+        }
+        currentModelURL = URL.createObjectURL(file);
+        
+        const gltfLoader = new THREE.GLTFLoader.GLTFLoader();
+        
+        // Load the model
+        gltfLoader.load(
+          currentModelURL,
+          function(gltf) {
+            // Remove existing custom scene if any
+            if (customScene) {
+              scene.remove(customScene);
+            }
+            
+            customScene = new THREE.Group();
+            const model = gltf.scene;
+            
+            // Center model
+            const box = new THREE.Box3().setFromObject(model);
+            const center = box.getCenter(new THREE.Vector3());
+            model.position.sub(center);
+            
+            // Apply shadow settings
+            model.traverse(function(node) {
+              if (node.isMesh) {
+                node.castShadow = !isMobile;
+                node.receiveShadow = !isMobile;
+              }
+            });
+            
+            customScene.add(model);
+            
+            // Position at avatar's location
+            customScene.position.copy(avatarGroup.position);
+            customScene.position.y = 0;
+            
+            // Hide default buildings
+            defaultBuildings.visible = false;
+            
+            // Add to scene
+            scene.add(customScene);
+            
+            updateStatus('upload-status', "Modello caricato con successo!");
+          },
+          function(xhr) {
+            // Progress
+            const percent = (xhr.loaded / xhr.total * 100);
+            updateStatus('upload-status', `Caricamento: ${Math.round(percent)}%`);
+          },
+          function(error) {
+            // Error
+            console.error('Errore caricamento modello:', error);
+            updateStatus('upload-status', 'Errore caricamento modello');
+            showError('Impossibile caricare il modello: ' + error.message);
+          }
+        );
+      }
+      
+      // Load skybox from file
+      function loadSkybox(file) {
+        updateStatus('skybox-status', "Caricamento sfondo...");
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const textureLoader = new THREE.TextureLoader();
+          const texture = textureLoader.load(
+            e.target.result,
+            function(texture) {
+              // Create a skybox
+              texture.mapping = THREE.EquirectangularReflectionMapping;
+              
+              // Remove existing skybox if any
+              if (skybox) {
+                scene.remove(skybox);
+              }
+              
+              // Create a sphere for the skybox
+              const skyboxGeometry = new THREE.SphereGeometry(500, 60, 40);
+              skyboxGeometry.scale(-1, 1, 1); // Invert the sphere so texture is on inside
+              
+              const skyboxMaterial = new THREE.MeshBasicMaterial({
+                map: texture,
+                side: THREE.BackSide
+              });
+              
+              skybox = new THREE.Mesh(skyboxGeometry, skyboxMaterial);
+              scene.add(skybox);
+              
+              updateStatus('skybox-status', "Sfondo caricato con successo!");
+            },
+            undefined,
+            function(error) {
+              updateStatus('skybox-status', "Errore caricamento sfondo");
+              showError('Impossibile caricare lo sfondo: ' + error.message);
+            }
+          );
+        };
+        reader.readAsDataURL(file);
+      }
+      
+      // Load avatar from file
+      function loadAvatar(file) {
+        updateStatus('avatar-status', "Caricamento avatar...");
+        
+        const avatarURL = URL.createObjectURL(file);
+        const gltfLoader = new THREE.GLTFLoader();
+        
+        gltfLoader.load(
+          avatarURL,
+          function(gltf) {
+            // Remove existing custom avatar if any
+            if (customAvatar) {
+              avatarGroup.remove(customAvatar);
+            }
+            
+            // Hide default avatar
+            avatarMesh.visible = false;
+            
+            customAvatar = gltf.scene;
+            
+            // Scale and position avatar
+            customAvatar.scale.set(0.5, 0.5, 0.5);
+            customAvatar.position.y = -1; // Adjust as needed
+            
+            // Apply shadow settings
+            customAvatar.traverse(function(node) {
+              if (node.isMesh) {
+                node.castShadow = !isMobile;
+                node.receiveShadow = !isMobile;
+              }
+            });
+            
+            avatarGroup.add(customAvatar);
+            
+            updateStatus('avatar-status', "Avatar caricato con successo!");
+            
+            URL.revokeObjectURL(avatarURL);
+          },
+          function(xhr) {
+            // Progress
+            const percent = (xhr.loaded / xhr.total * 100);
+            updateStatus('avatar-status', `Caricamento: ${Math.round(percent)}%`);
+          },
+          function(error) {
+            // Error
+            console.error('Errore caricamento avatar:', error);
+            updateStatus('avatar-status', 'Errore caricamento avatar');
+            showError('Impossibile caricare l\'avatar: ' + error.message);
+            URL.revokeObjectURL(avatarURL);
+          }
+        );
+      }
+      
+      // Reset to default avatar
+      function resetAvatar() {
+        if (customAvatar) {
+          avatarGroup.remove(customAvatar);
+          customAvatar = null;
+        }
+        
+        avatarMesh.visible = true;
+        updateStatus('avatar-status', "Avatar predefinito attivo");
+      }
+      
+      // Load default scene
+      function loadDefaultScene() {
+        if (customScene) {
+          scene.remove(customScene);
+          customScene = null;
+        }
+        
+        defaultBuildings.visible = true;
+        updateStatus('upload-status', "Scena predefinita caricata");
+      }
+      
+      // Add a random building at a position near the avatar
+      function addBuilding() {
+        const avatarPos = avatarGroup.position.clone();
+        
+        // Random position near but not too close to avatar
+        const offsetX = (Math.random() - 0.5) * 20 + 10;
+        const offsetZ = (Math.random() - 0.5) * 20 + 10;
+        
+        const posX = avatarPos.x + offsetX;
+        const posZ = avatarPos.z + offsetZ;
+        
+        // Random size
+        const width = 5 + Math.random() * 8;
+        const height = 10 + Math.random() * 15;
+        const depth = 5 + Math.random() * 8;
+        
+        // Random color
+        const color = new THREE.Color(Math.random(), Math.random(), Math.random());
+        
+        // Create building
+        const building = createBuilding(posX, posZ, width, height, depth, color);
+        
+        showError("Edificio aggiunto con successo", 2000);
+      }
+      
+      // Add tree
+      function addTree() {
+        const avatarPos = avatarGroup.position.clone();
+        
+        // Random position near avatar
+        const offsetX = (Math.random() - 0.5) * 20 + 10;
+        const offsetZ = (Math.random() - 0.5) * 20 + 10;
+        
+        const posX = avatarPos.x + offsetX;
+        const posZ = avatarPos.z + offsetZ;
+        
+        // Tree trunk
+        const trunkGeometry = new THREE.CylinderGeometry(0.5, 0.7, 3, 8);
+        const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+        const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+        trunk.position.set(posX, 0.5, posZ);
+        trunk.castShadow = !isMobile;
+        defaultBuildings.add(trunk);
+        
+        // Tree top
+        const topGeometry = new THREE.ConeGeometry(2, 4, 8);
+        const topMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22 });
+        const top = new THREE.Mesh(topGeometry, topMaterial);
+        top.position.set(posX, 3, posZ);
+        top.castShadow = !isMobile;
+        defaultBuildings.add(top);
+        
+        showError("Albero aggiunto con successo", 2000);
+      }
+      
+      // Add barrier
+      function addBarrier() {
+        const avatarPos = avatarGroup.position.clone();
+        
+        // Position in front of avatar
+        const direction = new THREE.Vector3(0, 0, -1);
+        direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), targetRotationY);
+        direction.normalize().multiplyScalar(10);
+        
+        const posX = avatarPos.x + direction.x;
+        const posZ = avatarPos.z + direction.z;
+        
+        // Create barrier
+        const barrierGeometry = new THREE.BoxGeometry(8, 3, 1);
+        const barrierMaterial = new THREE.MeshStandardMaterial({ color: 0xDC143C });
+        const barrier = new THREE.Mesh(barrierGeometry, barrierMaterial);
+        
+        barrier.position.set(posX, 0.5, posZ);
+        barrier.rotation.y = targetRotationY;
+        barrier.castShadow = !isMobile;
+        barrier.receiveShadow = !isMobile;
+        
+        defaultBuildings.add(barrier);
+        
+        showError("Barriera aggiunta con successo", 2000);
+      }
+      
+      // Game functions
+      function startGame() {
+        if (gameState.gameActive) return;
+        
+        gameState.gameActive = true;
+        gameState.score = 0;
+        gameState.enemies = 0;
+        
+        // Show game stats
+        document.getElementById('game-stats').style.display = 'block';
+        document.getElementById('score').textContent = gameState.score;
+        document.getElementById('highscore').textContent = gameState.highScore;
+        document.getElementById('enemies').textContent = gameState.enemies;
+        
+        // Start spawning enemies
+        spawnEnemies();
+        
+        showError("Modalità sparatutto attivata! Colpisci i nemici per fare punti.", 3000);
+      }
+      
+      function stopGame() {
+        if (!gameState.gameActive) return;
+        
+        gameState.gameActive = false;
+        
+        // Update high score
+        if (gameState.score > gameState.highScore) {
+          gameState.highScore = gameState.score;
+          localStorage.setItem('metaverseHighScore', gameState.highScore);
+          showError("Nuovo record: " + gameState.highScore, 3000);
+        }
+        
+        // Hide game stats
+        document.getElementById('game-stats').style.display = 'none';
+        
+        // Remove all enemies and bullets
+        clearEnemies();
+        clearBullets();
+      }
+      
+      function spawnEnemies() {
+        if (!gameState.gameActive) return;
+        
+        // Create enemy
+        const avatarPos = avatarGroup.position.clone();
+        
+        // Random position around avatar
+        const angle = Math.random() * Math.PI * 2;
+        const distance = 20 + Math.random() * 10;
+        
+        const posX = avatarPos.x + Math.sin(angle) * distance;
+        const posZ = avatarPos.z + Math.cos(angle) * distance;
+        
+        // Create enemy
+        const enemyGeometry = new THREE.SphereGeometry(1, 16, 16);
+        const enemyMaterial = new THREE.MeshStandardMaterial({ color: 0xFF0000 });
+        const enemy = new THREE.Mesh(enemyGeometry, enemyMaterial);
+        
+        enemy.position.set(posX, 1, posZ);
+        enemy.castShadow = !isMobile;
+        
+        // Add to enemies list
+        enemies.push({
+          mesh: enemy,
+          speed: 0.05 + Math.random() * 0.05,
+          health: 2
+        });
+        
+        enemyGroup.add(enemy);
+        
+        // Update enemy count
+        gameState.enemies++;
+        document.getElementById('enemies').textContent = gameState.enemies;
+        
+        // Schedule next spawn
+        const spawnDelay = 2000 + Math.random() * 3000;
+        setTimeout(spawnEnemies, spawnDelay);
+      }
+      
+      function clearEnemies() {
+        enemies.forEach(enemy => {
+          enemyGroup.remove(enemy.mesh);
+        });
+        enemies = [];
+      }
+      
+      function fireBullet() {
+        if (!gameState.gameActive) return;
+        
+        // Get direction from camera
+        const direction = new THREE.Vector3(0, 0, -1);
+        direction.applyQuaternion(camera.quaternion);
+        
+        // Create bullet
+        const bulletGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+        const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFF00 });
+        const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+        
+        // Position bullet at camera's position
+        bullet.position.copy(avatarGroup.position);
+        bullet.position.y += 1.5; // Eye level
+        
+        // Add to bullets list
+        bullets.push({
+          mesh: bullet,
+          direction: direction,
+          speed: 0.8,
+          timeAlive: 0
+        });
+        
+        bulletGroup.add(bullet);
+      }
+      
+      function clearBullets() {
+        bullets.forEach(bullet => {
+          bulletGroup.remove(bullet.mesh);
+        });
+        bullets = [];
+      }
+      
+      function updateBullets() {
+        if (!gameState.gameActive) return;
+        
+        // Move bullets
+        for (let i = bullets.length - 1; i >= 0; i--) {
+          const bullet = bullets[i];
+          
+          // Move bullet
+          bullet.mesh.position.x += bullet.direction.x * bullet.speed;
+          bullet.mesh.position.y += bullet.direction.y * bullet.speed;
+          bullet.mesh.position.z += bullet.direction.z * bullet.speed;
+          
+          // Increase time alive
+          bullet.timeAlive += 1;
+          
+          // Check if bullet should be removed (too old)
+          if (bullet.timeAlive > 100) {
+            bulletGroup.remove(bullet.mesh);
+            bullets.splice(i, 1);
+            continue;
+          }
+          
+          // Check for collision with enemies
+          for (let j = enemies.length - 1; j >= 0; j--) {
+            const enemy = enemies[j];
+            
+            // Simple distance check
+            const distance = bullet.mesh.position.distanceTo(enemy.mesh.position);
+            
+            if (distance < 1.2) { // Collision
+              // Decrease enemy health
+              enemy.health--;
+              
+              // Remove bullet
+              bulletGroup.remove(bullet.mesh);
+              bullets.splice(i, 1);
+              
+              // Check if enemy is dead
+              if (enemy.health <= 0) {
+                // Remove enemy
+                enemyGroup.remove(enemy.mesh);
+                enemies.splice(j, 1);
+                
+                // Update score
+                gameState.score += 10;
+                document.getElementById('score').textContent = gameState.score;
+                
+                // Update enemy count
+                gameState.enemies--;
+                document.getElementById('enemies').textContent = gameState.enemies;
+              }
+              
+              break;
+            }
+          }
+        }
+      }
+      
+      function updateEnemies() {
+        if (!gameState.gameActive) return;
+        
+        // Move enemies towards avatar
+        enemies.forEach(enemy => {
+          const direction = new THREE.Vector3();
+          direction.subVectors(avatarGroup.position, enemy.mesh.position);
+          direction.normalize();
+          
+          enemy.mesh.position.x += direction.x * enemy.speed;
+          enemy.mesh.position.z += direction.z * enemy.speed;
+          
+          // Check for collision with avatar
+          const distance = enemy.mesh.position.distanceTo(avatarGroup.position);
+          
+          if (distance < 2) {
+            // Game over
+            showError("Un nemico ti ha colpito! Gioco terminato.", 3000);
+            stopGame();
+          }
+        });
+      }
+      
+      // Animation loop
+      function animate() {
+        requestAnimationFrame(animate);
+        
+        // Handle movement
+        const direction = new THREE.Vector3();
+        
+        // Keyboard controls
+        if (keys['w']) direction.z = -1;
+        if (keys['s']) direction.z = 1;
+        if (keys['a']) direction.x = -1;
+        if (keys['d']) direction.x = 1;
+        if (keys[' '] && !jumping && physicsEnabled) {
+          playerVelocity.y = 0.2;
+          jumping = true;
+        }
+        
+        // Mobile joystick controls
+        if (mobileControls.active) {
+          direction.z = -mobileControls.joystickDelta.y;
+          direction.x = mobileControls.joystickDelta.x;
+        }
+        
+        // Apply rotation to movement direction
+        direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), targetRotationY);
+        direction.normalize().multiplyScalar(moveSpeed);
+        
+        // Apply movement
+        avatarGroup.position.x += direction.x;
+        avatarGroup.position.z += direction.z;
+        
+        // Apply physics
+        if (physicsEnabled) {
+          playerVelocity.y -= gravity;
+          avatarGroup.position.y += playerVelocity.y;
+          
+          // Ground collision
+          if (avatarGroup.position.y < 0) {
+            avatarGroup.position.y = 0;
+            playerVelocity.y = 0;
+            jumping = false;
+          }
+        }
+        
+        // Update avatar rotation
+        avatarGroup.rotation.y = targetRotationY;
+        
+        // Position camera
+        const cameraOffset = new THREE.Vector3(0, 1.6, 5);
+        cameraOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), targetRotationY);
+        camera.position.copy(avatarGroup.position).add(cameraOffset);
+        
+        // Apply look rotation
+        camera.lookAt(
+          avatarGroup.position.x - Math.sin(targetRotationY) * 5,
+          avatarGroup.position.y + 1.6 + Math.sin(targetRotationX) * 5,
+          avatarGroup.position.z - Math.cos(targetRotationY) * 5
+        );
+        
+        // Update game elements
+        if (gameState.gameActive) {
+          updateBullets();
+          updateEnemies();
+        }
+        
+        // Update UI
+        updateCoordinatesDisplay();
+        
+        // Render scene
+        renderer.render(scene, camera);
+      }
+      
+      // Handle shooting with keyboard
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'f' && gameState.gameActive) {
+          fireBullet();
+        }
+      });
+      
+      // Handle window resize
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+      
+      // Start animation
+      animate();
+      
+      // Load high score from localStorage
+      if (localStorage.getItem('metaverseHighScore')) {
+        gameState.highScore = parseInt(localStorage.getItem('metaverseHighScore'));
+      }
+    }
+  </script>
+// Aggiungi questa funzione per gestire meglio le risorse
+function disposeObject(obj) {
+  if (!obj) return;
+  
+  // Dispose geometries and materials
+  if (obj.geometry) obj.geometry.dispose();
+  
+  if (obj.material) {
+    if (Array.isArray(obj.material)) {
+      obj.material.forEach(material => {
+        if (material.map) material.map.dispose();
+        material.dispose();
+      });
+    } else {
+      if (obj.material.map) obj.material.map.dispose();
+      obj.material.dispose();
+    }
+  }
+  
+  // Dispose children
+  if (obj.children && obj.children.length > 0) {
+    for (let i = obj.children.length - 1; i >= 0; i--) {
+      disposeObject(obj.children[i]);
+    }
+  }
+}
+
+// Usa questa funzione quando rimuovi oggetti
+function clearEnemies() {
+  enemies.forEach(enemy => {
+    enemyGroup.remove(enemy.mesh);
+    disposeObject(enemy.mesh);
+  });
+  enemies = [];
+}
+// Aggiungi questa funzione per gestire meglio le risorse
+function disposeObject(obj) {
+  if (!obj) return;
+  
+  // Dispose geometries and materials
+  if (obj.geometry) obj.geometry.dispose();
+  
+  if (obj.material) {
+    if (Array.isArray(obj.material)) {
+      obj.material.forEach(material => {
+        if (material.map) material.map.dispose();
+        material.dispose();
+      });
+    } else {
+      if (obj.material.map) obj.material.map.dispose();
+      obj.material.dispose();
+    }
+  }
+  
+  // Dispose children
+  if (obj.children && obj.children.length > 0) {
+    for (let i = obj.children.length - 1; i >= 0; i--) {
+      disposeObject(obj.children[i]);
+    }
+  }
+}
+
+// Usa questa funzione quando rimuovi oggetti
+function clearEnemies() {
+  enemies.forEach(enemy => {
+    enemyGroup.remove(enemy.mesh);
+    disposeObject(enemy.mesh);
+  });
+  enemies = [];
+}
+// Aggiungi queste impostazioni nel renderer per dispositivi mobili
+if (isMobile) {
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
+  renderer.powerPreference = "high-performance";
+  
+  // Ridurre il numero di poligoni per gli oggetti semplici
+  const simpleMode = true;
+  const groundGeometry = new THREE.PlaneGeometry(100, 100, 1, 1); // Meno suddivisioni
+}
+// Aggiungi questa funzione per un rilevamento collisioni più preciso
+function checkCollision(obj1, obj2, tolerance = 0) {
+  // Calcola le bounding box per entrambi gli oggetti
+  const box1 = new THREE.Box3().setFromObject(obj1);
+  const box2 = new THREE.Box3().setFromObject(obj2);
+  
+  // Espandi leggermente la box2 in base alla tolleranza
+  if (tolerance > 0) {
+    box2.min.subScalar(tolerance);
+    box2.max.addScalar(tolerance);
+  }
+  
+  return box1.intersectsBox(box2);
+}
+
+// Usa questa funzione per controlli più precisi
+function updateEnemies() {
+  if (!gameState.gameActive) return;
+  
+  enemies.forEach(enemy => {
+    // Codice esistente per movimento...
+    
+    // Verifica collisione migliorata usando bounding box
+    if (checkCollision(enemy.mesh, avatarMesh, 0.5)) {
+      showError("Un nemico ti ha colpito! Gioco terminato.", 3000);
+      stopGame();
+    }
+  });
+}
+// Aggiungi questa funzione per un sistema di recupero più robusto
+function handleLoadError(errorType, message, retry = true) {
+  console.error(`Errore ${errorType}: ${message}`);
+  showError(`Errore ${errorType}: ${message}`, 5000);
+  
+  // Aggiunge un pulsante per riprovare se indicato
+  if (retry) {
+    const errorDiv = document.getElementById('error-message');
+    const retryBtn = document.createElement('button');
+    retryBtn.textContent = 'Riprova';
+    retryBtn.className = 'btn';
+    retryBtn.style.marginLeft = '10px';
+    retryBtn.onclick = () => {
+      errorDiv.style.display = 'none';
+      errorDiv.removeChild(retryBtn);
+      
+      // Azione specifica in base al tipo di errore
+      switch(errorType) {
+        case 'modello':
+          document.getElementById('upload-model-btn').click();
+          break;
+        case 'skybox':
+          document.getElementById('skybox-btn').click();
+          break;
+        // Altri casi...
+      }
+    };
+    errorDiv.appendChild(retryBtn);
+  }
+}
+// Modifica la struttura per evitare duplicazione dei riferimenti
+function updateBullets() {
+  if (!gameState.gameActive) return;
+  
+  // Itera attraverso i figli del gruppo invece di mantenere un array separato
+  for (let i = bulletGroup.children.length - 1; i >= 0; i--) {
+    const bulletMesh = bulletGroup.children[i];
+    const bulletData = bulletMesh.userData; // Conserva i dati nell'oggetto stesso
+    
+    // Movimento
+    bulletMesh.position.x += bulletData.direction.x * bulletData.speed;
+    bulletMesh.position.y += bulletData.direction.y * bulletData.speed;
+    bulletMesh.position.z += bulletData.direction.z * bulletData.speed;
+    
+    bulletData.timeAlive += 1;
+    if (bulletData.timeAlive > 100) {
+      bulletGroup.remove(bulletMesh);
+      disposeObject(bulletMesh);
+      continue;
+    }
+    
+    // Resto del codice...
+  }
+}
+
+// Quando crei un proiettile, salva i dati nell'oggetto stesso
+function fireBullet() {
+  const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+  bullet.position.copy(avatarGroup.position);
+  bullet.position.y += 1.5;
+  
+  // Salva i dati nell'oggetto invece di usare un array separato
+  bullet.userData = {
+    direction: direction,
+    speed: 0.8,
+    timeAlive: 0
+  };
+  
+  bulletGroup.add(bullet);
+}
+// Validazione per il caricamento di modelli
+function validateFile(file, types = ['model/gltf-binary', 'model/gltf+json']) {
+  // Verifica estensione
+  const validExtensions = ['.glb', '.gltf'];
+  const fileName = file.name.toLowerCase();
+  const hasValidExt = validExtensions.some(ext => fileName.endsWith(ext));
+  
+  if (!hasValidExt) {
+    return { valid: false, message: "Formato file non supportato. Usa .glb o .gltf" };
+  }
+  
+  // Verifica dimensione (max 20MB)
+  if (file.size > 20 * 1024 * 1024) {
+    return { valid: false, message: "File troppo grande (max 20MB)" };
+  }
+  
+  return { valid: true };
+}
+
+// Usa la funzione di validazione
+document.getElementById('file-upload').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    const validation = validateFile(file);
+    if (!validation.valid) {
+      showError(validation.message);
+      return;
+    }
+    
+    updateStatus('upload-status', `File selezionato: ${file.name}`);
+    loadModel(file);
+  }
+});
+// Aggiungi un pannello di configurazione dei controlli
+function addAccessibilitySettings() {
+  const settingsSection = document.createElement('div');
+  settingsSection.className = 'setting-section';
+  
+  const title = document.createElement('div');
+  title.className = 'setting-title';
+  title.textContent = 'Accessibilità';
+  
+  const sensitivityOption = document.createElement('div');
+  sensitivityOption.className = 'setting-option';
+  sensitivityOption.innerHTML = `
+    <label for="sensitivity">Sensibilità mouse/touch: </label>
+    <input type="range" id="sensitivity" min="1" max="10" value="5" class="slider">
+    <span id="sensitivity-value">5</span>
+  `;
+  
+  const contrastOption = document.createElement('div');
+  contrastOption.className = 'setting-option';
+  contrastOption.innerHTML = `
+    <label for="high-contrast">Modalità alto contrasto: </label>
+    <input type="checkbox" id="high-contrast">
+  `;
+  
+  settingsSection.appendChild(title);
+  settingsSection.appendChild(sensitivityOption);
+  settingsSection.appendChild(contrastOption);
+  
+  document.getElementById('settings-panel').appendChild(settingsSection);
+  
+  // Aggiungi event listener
+  document.getElementById('sensitivity').addEventListener('input', (e) => {
+    const value = e.target.value;
+    document.getElementById('sensitivity-value').textContent = value;
+    moveSpeed = isMobile ? 0.02 * value : 0.02 * value;
+  });
+  
+  document.getElementById('high-contrast').addEventListener('change', (e) => {
+    if (e.target.checked) {
+      document.documentElement.classList.add('high-contrast');
+      renderer.setClearColor(0x000000);
+      ambientLight.intensity = 0.7;
+    } else {
+      document.documentElement.classList.remove('high-contrast');
+      renderer.setClearColor(0x87CEEB);
+      ambientLight.intensity = 0.5;
+    }
+  });
+}
+
+// Chiama questa funzione dopo aver creato il pannello delle impostazioni
+addAccessibilitySettings();
+// Aggiungi un sistema di pulizia della memoria quando necessario
+let lastMemoryCleanup = Date.now();
+
+function checkMemoryUsage() {
+  if (Date.now() - lastMemoryCleanup > 60000) { // Una volta al minuto
+    console.log("Pulizia memoria...");
+    
+    // Forza la garbage collection su oggetti non utilizzati
+    if (typeof window.performance !== 'undefined' && window.performance.memory) {
+      console.log(`Memoria heap: ${(window.performance.memory.usedJSHeapSize / 1048576).toFixed(2)} MB`);
+    }
+    
+    // Rimuovi oggetti non visibili che sono troppo lontani
+    let distanceThreshold = 100;
+    defaultBuildings.children.forEach(obj => {
+      if (obj.position.distanceTo(avatarGroup.position) > distanceThreshold) {
+        obj.visible = false;
+      } else {
+        obj.visible = true;
+      }
+    });
+    
+    // Crea una miniatura di performance per informare l'utente
+    if (isMobile && 
+        renderer.info.render.triangles > 100000 ||
+        renderer.info.render.calls > 200) {
+      showError("Prestazioni ridotte. Attivando la modalità semplificata le prestazioni miglioreranno.", 3000);
+    }
+    
+    lastMemoryCleanup = Date.now();
+  }
+}
+
+// Aggiungi questo alla funzione animate()
+function animate() {
+  // Codice esistente...
+  
+  checkMemoryUsage();
+  
+  // Resto del codice...
+}
+
+</body>
+</html>
